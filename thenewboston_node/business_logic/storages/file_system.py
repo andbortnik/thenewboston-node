@@ -82,7 +82,7 @@ class FileSystemStorage:
 
     def list_directory(self, directory_path, sort_direction=1):
         if sort_direction not in (1, -1, None):
-            return ValueError('sort_direction must be either of the values: 1, -1, None')
+            raise ValueError('sort_direction must be either of the values: 1, -1, None')
 
         generator = self._list_directory_generator(directory_path)
         if sort_direction is None:

@@ -3,6 +3,8 @@ import os.path
 import stat
 from os import stat as os_stat
 
+import pytest
+
 from thenewboston_node.business_logic.storages.file_system import FileSystemStorage, make_optimized_file_path
 
 
@@ -114,3 +116,10 @@ def test_list_directory(blockchain_directory):
         os.path.join(base_directory, '1334567890.txt'),
         os.path.join(base_directory, '1434567890.txt'),
     } == set(fss.list_directory(base_directory))
+
+
+@pytest.mark.parametrize('wrong_sort_direction', [2, -2, object(), 0.1, '1'])
+def test_list_directory_validate_sort_direction(blockchain_directory, wrong_sort_direction):
+    fss = FileSystemStorage()
+    with pytest.raises(ValueError):
+        list(fss.list_directory(blockchain_directory, sort_direction=wrong_sort_direction))
