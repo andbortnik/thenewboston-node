@@ -207,11 +207,25 @@ def test_no_compression_file_storage_saves_raw_files(blockchain_path, compressib
     assert file_path.read_bytes() == compressible_data
 
 
-def test_save_to_raw_finalized_file_raises_error(blockchain_path, compressible_data):
+@pytest.mark.parametrize('is_final', (True, False))
+def test_save_to_raw_finalized_file_raises_error(blockchain_path, compressible_data, is_final):
     fss = FileSystemStorage(compressors=())
     file_path = str(blockchain_path / 'file.txt')
 
     fss.save(file_path, binary_data=compressible_data, is_final=True)
 
     with pytest.raises(exceptions.FinalizedFileWriteError):
-        fss.save(file_path, compressible_data)
+        fss.save(file_path, compressible_data, is_final)
+
+
+@pytest.mark.parametrize('is_final', (True, False))
+def test_save_to_compressed_finalized_file_raises_error(
+    blockchain_path, compressible_data, incompressible_data, is_final
+):
+    fss = FileSystemStorage(compressors=('gz',))
+    file_path = str(blockchain_path / 'file.txt')
+
+    fss.save(file_path, binary_data=compressible_data, is_final=True)
+
+    with pytest.raises(exceptions.FinalizedFileWriteError):
+        fss.save(file_path, incompressible_data, is_final)

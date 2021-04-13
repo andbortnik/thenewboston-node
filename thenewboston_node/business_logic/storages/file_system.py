@@ -46,6 +46,14 @@ def walk_directory(directory_path):
             yield os.path.join(dir_path, filename)
 
 
+def exist_compressed_file(file_path):
+    for decompressor in DECOMPRESSION_FUNCTIONS:
+        path = file_path + '.' + decompressor
+        if os.path.exists(path):
+            return True
+    return False
+
+
 class FileSystemStorage(Storage):
     """
     Compressing / decompressing storage for capacity optimization
@@ -114,8 +122,7 @@ class FileSystemStorage(Storage):
 
         if best_filename != file_path:
             logger.debug('Writing compressed file: %s (%s bytes)', best_filename, len(best_data))
-            with open(best_filename, 'wb') as fo:
-                fo.write(best_data)
+            self._try_write(best_filename, best_data, mode='wb')
 
             logger.debug('Removing %s', file_path)
             os.remove(file_path)
@@ -129,14 +136,20 @@ class FileSystemStorage(Storage):
 
         # TODO(dmu) HIGH: Optimize for 'wb' mode so we do not need to reread the file from
         #                 filesystem to compress it
+        self._try_write(file_path, binary_data, mode)
+        if is_final:
+            self.finalize(file_path)
+
+    def _try_write(self, file_path, binary_data: bytes, mode):
+        finalized_exc = exceptions.FinalizedFileWriteError(f"File is finalized '{file_path}'")
+
+        if exist_compressed_file(file_path):
+            raise finalized_exc
         try:
             with open(file_path, mode=mode) as fo:
                 fo.write(binary_data)
         except PermissionError as e:
-            raise exceptions.FinalizedFileWriteError(f"File is finalized '{file_path}'") from e
-
-        if is_final:
-            self.finalize(file_path)
+            raise finalized_exc from e
 
 
 def get_filesystem_storage(max_depth=8, compressors=tuple(COMPRESSION_FUNCTIONS)):
