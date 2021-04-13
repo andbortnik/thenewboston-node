@@ -5,6 +5,7 @@ from os import stat as os_stat
 
 import pytest
 
+from thenewboston_node.business_logic.storages import exceptions
 from thenewboston_node.business_logic.storages.decorators import make_optimized_file_path
 from thenewboston_node.business_logic.storages.file_system import FileSystemStorage, get_filesystem_storage
 from thenewboston_node.business_logic.tests.test_storages.util import compress, decompress, mkdir_and_touch
@@ -204,3 +205,13 @@ def test_no_compression_file_storage_saves_raw_files(blockchain_path, compressib
 
     assert file_path.exists()
     assert file_path.read_bytes() == compressible_data
+
+
+def test_save_to_raw_finalized_file_raises_error(blockchain_path, compressible_data):
+    fss = FileSystemStorage(compressors=())
+    file_path = str(blockchain_path / 'file.txt')
+
+    fss.save(file_path, binary_data=compressible_data, is_final=True)
+
+    with pytest.raises(exceptions.FinalizedFileWriteError):
+        fss.save(file_path, compressible_data)

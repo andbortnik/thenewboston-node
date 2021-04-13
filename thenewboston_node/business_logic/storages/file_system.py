@@ -5,6 +5,7 @@ import lzma
 import os
 import stat
 
+from thenewboston_node.business_logic.storages import exceptions
 from thenewboston_node.business_logic.storages.base import Storage, sort_filenames
 from thenewboston_node.business_logic.storages.decorators import OptimizedPathStorageDecorator
 from thenewboston_node.core.logging import timeit_method
@@ -128,8 +129,11 @@ class FileSystemStorage(Storage):
 
         # TODO(dmu) HIGH: Optimize for 'wb' mode so we do not need to reread the file from
         #                 filesystem to compress it
-        with open(file_path, mode=mode) as fo:
-            fo.write(binary_data)
+        try:
+            with open(file_path, mode=mode) as fo:
+                fo.write(binary_data)
+        except PermissionError as e:
+            raise exceptions.FinalizedFileWriteError(f"File is finalized '{file_path}'") from e
 
         if is_final:
             self.finalize(file_path)
