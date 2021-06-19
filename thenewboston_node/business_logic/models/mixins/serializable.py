@@ -6,38 +6,28 @@ from thenewboston_node.core.utils.misc import coerce_from_json_type, coerce_to_j
 from .base import BaseMixin
 
 
+def serialize_item(item, skip_none_values, coerce_to_json_types):
+    if isinstance(item, SerializableMixin):
+        return item.serialize_to_dict(skip_none_values=skip_none_values, coerce_to_json_types=coerce_to_json_types)
+    elif coerce_to_json_types:
+        return coerce_to_json_type(item)
+
+
 def serialize_value(value, skip_none_values, coerce_to_json_types):  # noqa: C901
     if isinstance(value, SerializableMixin):
         value = value.serialize_to_dict(skip_none_values=skip_none_values, coerce_to_json_types=coerce_to_json_types)
     elif isinstance(value, list):
         new_value = []
         for item in value:
-            if isinstance(item, SerializableMixin):
-                item = item.serialize_to_dict(
-                    skip_none_values=skip_none_values, coerce_to_json_types=coerce_to_json_types
-                )
-            elif coerce_to_json_types:
-                item = coerce_to_json_type(item)
-
+            item = serialize_item(item, skip_none_values, coerce_to_json_types)
             new_value.append(item)
 
         value = new_value
     elif isinstance(value, dict):
         new_value = {}
         for item_key, item_value in value.items():
-            if isinstance(item_key, SerializableMixin):
-                item_key = item_key.serialize_to_dict(
-                    skip_none_values=skip_none_values, coerce_to_json_types=coerce_to_json_types
-                )
-            elif coerce_to_json_types:
-                item_key = coerce_to_json_type(item_key)
-
-            if isinstance(item_value, SerializableMixin):
-                item_value = item_value.serialize_to_dict(
-                    skip_none_values=skip_none_values, coerce_to_json_types=coerce_to_json_types
-                )
-            elif coerce_to_json_types:
-                item_value = coerce_to_json_type(item_value)
+            item_key = serialize_item(item_key, skip_none_values, coerce_to_json_types)
+            item_value = serialize_item(item_value, skip_none_values, coerce_to_json_types)
 
             new_value[item_key] = item_value
 
@@ -48,6 +38,13 @@ def serialize_value(value, skip_none_values, coerce_to_json_types):  # noqa: C90
     return value
 
 
+def deserialize_item(item, item_type, complain_excessive_keys=True, override=None):
+    if issubclass(item_type, SerializableMixin):
+        return item_type.deserialize_from_dict(item, complain_excessive_keys, override)
+    else:
+        return coerce_from_json_type(item, item_type)
+
+
 class SerializableMixin(BaseMixin):
 
     @staticmethod
@@ -55,11 +52,7 @@ class SerializableMixin(BaseMixin):
         (item_type,) = typing.get_args(field_type)
         new_value = []
         for item in value:
-            if issubclass(item_type, SerializableMixin):
-                item = item_type.deserialize_from_dict(item, complain_excessive_keys=complain_excessive_keys)
-            else:
-                item = coerce_from_json_type(item, item_type)
-
+            item = deserialize_item(item, item_type, complain_excessive_keys)
             new_value.append(item)
 
         return new_value
@@ -72,22 +65,14 @@ class SerializableMixin(BaseMixin):
         item_key_type, item_value_type = typing.get_args(field_type)
         for item_key, item_value in value.items():
             item_key_original = item_key
-            if issubclass(item_key_type, SerializableMixin):
-                item_key = item_key_type.deserialize_from_dict(
-                    item_key, complain_excessive_keys=complain_excessive_keys
-                )
-            else:
-                item_key = coerce_from_json_type(item_key, item_key_type)
 
-            if issubclass(item_value_type, SerializableMixin):
-                item_value = item_value_type.deserialize_from_dict(
-                    item_value,
-                    complain_excessive_keys=complain_excessive_keys,
-                    override=item_values_override.get(item_key_original)
-                )
-            else:
-                item_value = coerce_from_json_type(item_value, item_value_type)
-
+            item_key = deserialize_item(item_key, item_key_type, complain_excessive_keys=complain_excessive_keys)
+            item_value = deserialize_item(
+                item_value,
+                item_value_type,
+                complain_excessive_keys=complain_excessive_keys,
+                override=item_values_override.get(item_key_original)
+            )
             new_value[item_key] = item_value
 
         return new_value
